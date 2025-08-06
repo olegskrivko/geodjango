@@ -181,13 +181,31 @@ LEAFLET_CONFIG = {
 # DATABASES = {
 #     "default": dj_database_url.parse(os.getenv("DATABASE_URL"), conn_max_age=600)
 # }
-
-db_config = dj_database_url.parse(os.getenv("DATABASE_URL"))
-db_config["ENGINE"] = "django.contrib.gis.db.backends.postgis"
-
 DATABASES = {
-    "default": db_config
+    'default': {
+        'ENGINE': os.getenv("DATABASES_ENGINE"),
+        'NAME': os.getenv("DATABASES_NAME"),
+        'USER': os.getenv("DATABASES_USER"),
+        'PASSWORD': os.getenv("DATABASES_PASSWORD"),
+        'HOST': os.getenv("DATABASES_HOST"),
+        'PORT': os.getenv("DATABASES_PORT"),
+        # 'OPTIONS': {
+        #     'sslmode': 'require',                       
+        # },
+    }
 }
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.contrib.gis.db.backends.postgis",
+#         "NAME": "pethub",
+#         "USER": "postgres",
+#         "PASSWORD": "your-password-here",
+#         "HOST": "db.wdvorwsdsfjzjbwtqkyw.supabase.co",
+#         "PORT": "5432",
+#         "CONN_MAX_AGE": 600,  # optional, for persistent connections
+#     }
+# }
+
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.contrib.gis.db.backends.postgis',
