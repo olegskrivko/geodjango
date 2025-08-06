@@ -178,10 +178,16 @@ LEAFLET_CONFIG = {
 #     'default': dj_database_url.config(conn_max_age=600)
 # }
 
-DATABASES = {
-    "default": dj_database_url.parse(os.getenv("DATABASE_URL"), conn_max_age=600)
-}
+# DATABASES = {
+#     "default": dj_database_url.parse(os.getenv("DATABASE_URL"), conn_max_age=600)
+# }
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise Exception("DATABASE_URL environment variable is not set")
 
+DATABASES = {
+    "default": dj_database_url.parse(database_url, conn_max_age=600)
+}
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.contrib.gis.db.backends.postgis',
