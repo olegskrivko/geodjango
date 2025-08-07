@@ -29,6 +29,10 @@ COPY . .
 
 RUN python manage.py collectstatic --noinput || true
 
+# Make migrations and migrate database
+RUN python manage.py makemigrations --noinput
+RUN python manage.py migrate --noinput
+
 #CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 # CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120"]
 
