@@ -47,7 +47,7 @@ CORS_ALLOW_ALL_ORIGINS = False  # Set to False for production
 
 # Or restrict to specific domains
 CORS_ALLOWED_ORIGINS = [
-    "https://lunori.netlify.app",
+    "https://lunorix.netlify.app",
     "http://localhost:3000",
     "http://localhost:5173",
     "https://lunori.app",
@@ -217,8 +217,8 @@ DATABASES = {
 #         'PORT': '5432',
 #     }
 # }
-# GDAL_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll"
-# GEOS_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll"
+GDAL_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll"
+GEOS_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll"
 # GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH', r'C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll')
 # GEOS_LIBRARY_PATH = os.environ.get('GEOS_LIBRARY_PATH', r'C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll')
 # GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH')

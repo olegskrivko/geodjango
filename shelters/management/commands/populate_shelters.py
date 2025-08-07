@@ -99,8 +99,6 @@ class Command(BaseCommand):
                 SocialMedia.objects.create(
                     platform=platform,
                     profile_url=fake.url(),
-                    is_official=random.choice([True, False]),
-                    is_verified=random.choice([True, False]),
                     shelter=shelter
                 )
 
