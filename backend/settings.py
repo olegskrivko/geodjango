@@ -208,7 +208,7 @@ DATABASES = {
 #         "CONN_MAX_AGE": 600,  # optional, for persistent connections
 #     }
 # }
-
+#fake commit
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.contrib.gis.db.backends.postgis',
