@@ -66,3 +66,13 @@ class FeedbackSerializer(serializers.ModelSerializer):
 
     def get_subject_display(self, obj):
         return dict(Feedback.SUBJECT_CHOICES).get(obj.subject, "Unknown")
+
+
+# testimonials/serializers.py
+# from rest_framework import serializers
+# from .models import Testimonial
+
+# class TestimonialSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Testimonial
+#         fields = '__all__'

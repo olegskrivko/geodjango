@@ -2,6 +2,35 @@ from django.utils.html import format_html
 from django.contrib import admin
 from .models import Pet, Poster, PetSightingHistory, UserFavorites, PetView, PetShare, PetReport
 
+
+@admin.register(Poster)
+class PosterAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'pet',
+        'name',
+        'scans',
+        'has_location',
+        'latitude',
+        'longitude',
+        'created_at',
+        'poster_preview'
+    )
+    list_filter = ('has_location', 'created_at', 'pet__species', 'pet__status')
+    search_fields = ('id', 'name', 'pet__id')
+    readonly_fields = ('created_at', 'poster_preview')
+
+    def poster_preview(self, obj):
+        """Display a thumbnail if poster has an image associated via the pet"""
+        # Assuming poster itself doesn't store image, using pet_image_1 from related pet
+        if obj.pet.pet_image_1:
+            url = obj.pet.pet_image_1.url if hasattr(obj.pet.pet_image_1, 'url') else obj.pet.pet_image_1
+            return format_html(
+                '<img src="{}" style="max-width: 200px; height: auto;" />', url
+            )
+        return "No image"
+    poster_preview.short_description = "Poster Preview"
+
 @admin.register(Pet)
 class ShelterAdmin(admin.ModelAdmin):
     list_display = (

@@ -14,3 +14,12 @@ class FeedbackAdmin(admin.ModelAdmin):
     get_subject_display.short_description = 'Subject'
 
 admin.site.register(Feedback, FeedbackAdmin)
+
+# testimonials/admin.py
+# from django.contrib import admin
+# from .models import Testimonial
+
+# @admin.register(Testimonial)
+# class TestimonialAdmin(admin.ModelAdmin):
+#     list_display = ('author_name', 'author_title', 'author_company', 'created_at')
+#     search_fields = ('author_name', 'author_company', 'text')
