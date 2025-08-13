@@ -184,34 +184,34 @@ LEAFLET_CONFIG = {
 # DATABASES = {
 #     "default": dj_database_url.parse(os.getenv("DATABASE_URL"), conn_max_age=600)
 # }
-# DATABASES = {
-#     'default': {
-#         'ENGINE': os.getenv("DATABASES_ENGINE"),
-#         'NAME': os.getenv("DATABASES_NAME"),
-#         'USER': os.getenv("DATABASES_USER"),
-#         'PASSWORD': os.getenv("DATABASES_PASSWORD"),
-#         'HOST': os.getenv("DATABASES_HOST"),
-#         'PORT': os.getenv("DATABASES_PORT"),
-#         # 'OPTIONS': {
-#         #     'sslmode': 'require',                       
-#         # },
-#     }
-# }
-
 DATABASES = {
-    "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": "postgres",
-        "USER": "postgres.wdvorwsdsfjzjbwtqkyw",
-        "PASSWORD": "eXTSyVBs3XeKKFt9",
-        "HOST": "aws-0-eu-north-1.pooler.supabase.com",
-        "PORT": "6543",
-        #"CONN_MAX_AGE": 600,  # optional, for persistent connections
+    'default': {
+        'ENGINE': os.getenv("DATABASES_ENGINE"),
+        'NAME': os.getenv("DATABASES_NAME"),
+        'USER': os.getenv("DATABASES_USER"),
+        'PASSWORD': os.getenv("DATABASES_PASSWORD"),
+        'HOST': os.getenv("DATABASES_HOST"),
+        'PORT': os.getenv("DATABASES_PORT"),
         # 'OPTIONS': {
         #     'sslmode': 'require',                       
         # },
     }
 }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.contrib.gis.db.backends.postgis",
+#         "NAME": "postgres",
+#         "USER": "postgres.wdvorwsdsfjzjbwtqkyw",
+#         "PASSWORD": "eXTSyVBs3XeKKFt9",
+#         "HOST": "aws-0-eu-north-1.pooler.supabase.com",
+#         "PORT": "6543",
+#         #"CONN_MAX_AGE": 600,  # optional, for persistent connections
+#         # 'OPTIONS': {
+#         #     'sslmode': 'require',                       
+#         # },
+#     }
+# }
 #fake commit
 # DATABASES = {
 #     'default': {
@@ -224,8 +224,8 @@ DATABASES = {
 #         'PORT': '5432',
 #     }
 # }
-GDAL_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll"
-GEOS_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll"
+# GDAL_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll"
+# GEOS_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll"
 # GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH', r'C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll')
 # GEOS_LIBRARY_PATH = os.environ.get('GEOS_LIBRARY_PATH', r'C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll')
 # GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH')
