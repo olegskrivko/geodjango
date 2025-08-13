@@ -197,15 +197,19 @@ DATABASES = {
         # },
     }
 }
+
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.contrib.gis.db.backends.postgis",
-#         "NAME": "pethub",
-#         "USER": "postgres",
-#         "PASSWORD": "your-password-here",
-#         "HOST": "db.wdvorwsdsfjzjbwtqkyw.supabase.co",
-#         "PORT": "5432",
-#         "CONN_MAX_AGE": 600,  # optional, for persistent connections
+#         "NAME": "postgres",
+#         "USER": "postgres.wdvorwsdsfjzjbwtqkyw",
+#         "PASSWORD": "eXTSyVBs3XeKKFt9",
+#         "HOST": "aws-0-eu-north-1.pooler.supabase.com",
+#         "PORT": "6543",
+#         #"CONN_MAX_AGE": 600,  # optional, for persistent connections
+#         # 'OPTIONS': {
+#         #     'sslmode': 'require',                       
+#         # },
 #     }
 # }
 #fake commit
