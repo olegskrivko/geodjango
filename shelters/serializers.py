@@ -22,7 +22,14 @@ class ShelterSerializer(serializers.ModelSerializer):
     social_media = SocialMediaSerializer(many=True, read_only=True)
     cover_url = serializers.SerializerMethodField()
 
-
+    distance_km = serializers.SerializerMethodField()
+    
+    
+    def get_distance_km(self, obj):
+        if hasattr(obj, 'distance') and obj.distance:
+            return round(obj.distance.km, 2)
+        return None
+    
     def validate(self, data):
         lat = data.get('latitude')
         lng = data.get('longitude')
@@ -32,7 +39,6 @@ class ShelterSerializer(serializers.ModelSerializer):
             data['location'] = Point(float(lng), float(lat))
         return data
 
-    
     class Meta:
         model = Shelter
         fields =  '__all__'

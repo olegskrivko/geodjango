@@ -6,9 +6,9 @@ from .models import Service,  Review, WorkingHour, Location
 from .serializers import ServiceSerializer, ReviewSerializer
 import cloudinary.uploader
 from rest_framework import status
-# from django.contrib.gis.geos import Point
-# from django.contrib.gis.db.models.functions import Distance
-# from .filters import ServiceFilter
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
+from .filters import ServiceFilter
 # Add this at the top if you haven't already
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.pagination import PageNumberPagination
@@ -33,11 +33,12 @@ from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.db.models import OuterRef, Subquery, Value, FloatField
 from django.db.models import Min
+from django.db.models import Prefetch
+from django.db.models import OuterRef, Subquery, Min, F
+from django.db.models.functions import Coalesce
+from django.db import models
 User = get_user_model()
-# user_location = Point(user_lng, user_lat)
-# services = Location.objects.annotate(
-#     distance=Distance('point', user_location)
-# ).filter(distance__lte=5000).order_by('distance')  # services within 5km
+
 class ServicePagination(PageNumberPagination):
     page_size = 6
     page_size_query_param = 'page_size'
@@ -77,29 +78,72 @@ class ServiceViewSet(viewsets.ModelViewSet):
     filterset_class = ServiceFilter
     pagination_class = ServicePagination
     parser_classes = (MultiPartParser, FormParser)
-
-    # def get_queryset(self):
-    #     user_location = Point(24.1052, 56.9496, srid=4326)
-
-    #     return Service.objects.annotate(
-    #         min_distance_to_riga=Min(
-    #             Distance('locations__location', user_location)
-    #         )
-    #     )
+    ordering_fields = ['created_at', 'price', 'rating', 'distance']
+    # ordering = ['-created_at']
 
     def get_queryset(self):
-        riga_point = Point(24.1052, 56.9496, srid=4326)
+        queryset = super().get_queryset()
 
-        min_distance_subquery = Location.objects.filter(
-            service=OuterRef('pk'),
-            location__isnull=False
-        ).annotate(
-            dist=Distance('location', riga_point)
-        ).order_by('dist').values('dist')[:1]
+        latitude = self.request.query_params.get('latitude')
+        longitude = self.request.query_params.get('longitude')
+        latitude = 56.9496
+        longitude = 24.1052
 
-        return Service.objects.annotate(
-            min_distance_to_riga=Subquery(min_distance_subquery, output_field=FloatField())
-        ).order_by('-created_at')
+        if latitude and longitude:
+            try:
+                user_point = Point(float(longitude), float(latitude), srid=4326)
+
+                # Subquery to calculate min distance per service
+                min_distance_subquery = (
+                    Location.objects
+                    .filter(service=OuterRef('pk'))
+                    .annotate(distance=Distance('location', user_point))
+                    .values('service')
+                    .annotate(min_distance=Min('distance'))
+                    .values('min_distance')
+                )
+
+                queryset = (
+                    queryset
+                    .annotate(min_distance_km=Coalesce(Subquery(min_distance_subquery, output_field=FloatField()) / 1000.0, 99999.0))
+                    .order_by('min_distance_km')  # 👈 order here
+                    .prefetch_related(Prefetch('locations', queryset=Location.objects.annotate(distance=Distance('location', user_point)).order_by('distance')))
+                )
+
+            except (ValueError, TypeError):
+                pass
+
+        return queryset
+
+    # def get_queryset(self):
+    #         queryset = super().get_queryset()
+
+    #         latitude = self.request.query_params.get('latitude')
+    #         longitude = self.request.query_params.get('longitude')
+    #         latitude = 56.9496
+    #         longitude = 24.1052
+
+    #         if latitude and longitude:
+    #             try:
+    #                 user_point = Point(float(longitude), float(latitude), srid=4326)
+
+    #                 # Annotate distance on Location queryset
+    #                 locations_with_distance = Location.objects.annotate(
+    #                     distance=Distance('location', user_point)
+    #                 ).order_by('distance')
+
+    #                 # Prefetch annotated locations in services queryset
+    #                 queryset = queryset.prefetch_related(
+    #                     Prefetch('locations', queryset=locations_with_distance)
+    #                 )
+    #             except (ValueError, TypeError):
+    #                 pass  # Ignore bad input, fallback to no distance annotation
+
+    #         return queryset
+ 
+
+
+  
 
     def get_service_limit(self, user):
         if getattr(user, "is_subscribed", False):
@@ -256,6 +300,49 @@ class ServiceDetailView(generics.RetrieveAPIView):
     serializer_class = ServiceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     lookup_field = 'id'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Get user coordinates from query parameters
+        latitude = self.request.query_params.get('latitude')
+        longitude = self.request.query_params.get('longitude')
+        
+        if latitude and longitude:
+            try:
+                user_location = Point(float(longitude), float(latitude), srid=4326)
+                
+                # Subquery to get minimum distance to user's point among related locations
+                min_distance_subquery = Location.objects.filter(
+                    service=OuterRef('pk'),
+                    location__isnull=False
+                ).annotate(
+                    dist=Distance('location', user_location)
+                ).order_by('dist').values('dist')[:1]
+
+                # Annotate services with that minimum distance
+                queryset = queryset.annotate(
+                    min_distance=Subquery(min_distance_subquery, output_field=FloatField())
+                )
+                
+            except (ValueError, TypeError):
+                pass
+
+        return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        
+        # Get user coordinates from query parameters
+        latitude = self.request.query_params.get('latitude')
+        longitude = self.request.query_params.get('longitude')
+        
+        if latitude and longitude:
+            try:
+                context['user_point'] = Point(float(longitude), float(latitude), srid=4326)
+            except (ValueError, TypeError):
+                pass
+        return context
 
 
 class ReviewListCreateView(generics.ListCreateAPIView):

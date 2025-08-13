@@ -1,22 +1,4 @@
-# from django.contrib import admin
-# from .models import Guide, Paragraph
-
-# class ParagraphInline(admin.TabularInline):
-#     model = Paragraph
-#     extra = 1  # Number of empty paragraph forms shown by default
-#     fields = ('order', 'step_title', 'illustration', 'content', 'illustration_prompt')  # Customize fields shown inline
-#     readonly_fields = []  # You can add readonly fields if needed
-
-# class GuideAdmin(admin.ModelAdmin):
-#     inlines = [ParagraphInline]
-#     list_display = ('title', 'author', 'public', 'created_at', 'updated_at')
-#     list_filter = ('public', 'created_at', 'author')
-#     search_fields = ('title', 'description', 'author__username')
-#     prepopulated_fields = {"slug": ("title",)}  # Auto-generate slug from title
-#     ordering = ('-created_at',)
-#     list_per_page = 20
-
-# admin.site.register(Guide, GuideAdmin)
+# guides/admin.py
 from django.contrib import admin
 from .models import Guide, Paragraph
 

@@ -8,6 +8,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Shelter, AnimalType
 from .serializers import ShelterSerializer, AnimalTypeSerializer
 from .filters import ShelterFilter
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
@@ -33,6 +35,26 @@ class ShelterViewSet(viewsets.ModelViewSet):
     filterset_class = ShelterFilter
     pagination_class = ShelterPagination
 
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # user defined coords
+        latitude = self.request.query_params.get('latitude')
+        longitude = self.request.query_params.get('longitude')
+        latitude = 56.9496   # Riga latitude
+        longitude = 24.1052  # Riga longitude
+
+        if latitude and longitude:
+            try:
+                user_location = Point(float(longitude), float(latitude), srid=4326)
+                queryset = queryset.annotate(distance=Distance('location', user_location)).order_by('distance')
+            except (ValueError, TypeError):
+                pass  # Invalid input, ignore distance filtering
+
+        return queryset
+    
+
     # Override the default create behavior to automatically set created_by and updated_by fields
     def perform_create(self, serializer):
         """
@@ -51,11 +73,9 @@ class ShelterViewSet(viewsets.ModelViewSet):
         """
         serializer.save(updated_by=self.request.user)
 
-
 class AnimalTypeListView(generics.ListAPIView):
     """
     API view to list all Animal Types.
-
     - Returns all animal types ordered alphabetically by name.
     - Accessible to anyone (no authentication required).
     """

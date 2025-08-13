@@ -5,10 +5,12 @@ from django.contrib.auth import get_user_model
 # from core.models import SocialMedia
 from django.conf import settings
 from django.db.models import Avg
-#from django.contrib.gis.db import models as geomodels
+from django.contrib.gis.db import models as geomodels
 from core.mixins import AddressMixin, ContactMixin
 from cloudinary.models import CloudinaryField
 from django.db.models import OuterRef, Subquery
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
 User = get_user_model()
 
 
@@ -85,11 +87,6 @@ class Service(ContactMixin, models.Model):
     cover_alt = models.CharField(max_length=255, blank=True, help_text="Alternative text for the service image.")
     cover_caption = models.CharField(max_length=255, blank=True, help_text="Caption or description for the service image.")
     cover_source = models.CharField(max_length=255, blank=True, help_text="Source or credit for the service image.")
-    
-    cover_width = models.PositiveIntegerField(null=True, blank=True, help_text="Width of the service image in pixels.")
-    cover_height = models.PositiveIntegerField(null=True, blank=True, help_text="Height of the service image in pixels.")
-    cover_format = models.CharField(max_length=50, blank=True, help_text="Image format of the service (e.g., jpg, png).")
-    cover_size = models.PositiveIntegerField(null=True, blank=True, help_text="File size of the service image in bytes.")
 
     is_active = models.BooleanField(default=True) 
     is_available = models.BooleanField(default=True)
@@ -107,6 +104,7 @@ class Service(ContactMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True, help_text="Timestamp when the service was created.")
     updated_at = models.DateTimeField(auto_now=True, help_text="Timestamp when the service was last updated.")
     
+    
 
     def average_rating(self):
         return self.reviews.aggregate(models.Avg('rating'))['rating__avg'] or 0
@@ -116,6 +114,41 @@ class Service(ContactMixin, models.Model):
     
     def __str__(self):
         return self.operating_name
+    
+class Location(models.Model):
+    COUNTRY_CHOICES = [
+        ('LV', 'Latvia'),
+        ('EE', 'Estonia'),
+        ('LT', 'Lithuania'),
+    ]
+    service = models.ForeignKey(Service, related_name='locations', on_delete=models.CASCADE)
+    location_title = models.CharField(max_length=100)
+    location_description = models.TextField()
+
+    street_address = models.CharField(max_length=255, blank=True, null=True, help_text="Street address, P.O. box, company name, c/o")
+    street_address2 = models.CharField(max_length=255, blank=True, null=True, help_text="Apartment, suite, unit, building, floor, etc.")
+    city = models.CharField(max_length=100, blank=True, null=True)
+    state_or_province = models.CharField(max_length=100, blank=True, null=True, help_text="State, province, or region")
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
+    country = models.CharField(max_length=2, choices=COUNTRY_CHOICES, blank=True, null=True, help_text="ISO 3166-1 alpha-2 country code")
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    location = geomodels.PointField(geography=True, blank=True, null=True)
+
+    @property
+    def full_address(self):
+        parts = [
+            self.street_address,
+            self.street_address2,
+            self.city,
+            self.state_or_province,
+            self.postal_code,
+            self.get_country_display() if self.country else None
+        ]
+        return ", ".join(filter(None, parts))
+    
+    def __str__(self):
+        return f'{self.service.operating_name} location'
     
 class Review(models.Model):
     service = models.ForeignKey(Service, related_name='reviews', on_delete=models.CASCADE)
@@ -127,16 +160,6 @@ class Review(models.Model):
 
     class Meta:
         unique_together = ('service', 'user')
-    
-class Location(AddressMixin, models.Model):
-    service = models.ForeignKey(Service, related_name='locations', on_delete=models.CASCADE)
-    location_title = models.CharField(max_length=100)
-    location_description = models.TextField()
-    
-    def __str__(self):
-        return f'{self.service.operating_name} location'
-    
-
 
 class WorkingHour(models.Model):
     DAYS_OF_WEEK = [
@@ -171,8 +194,6 @@ class UserServiceFavorites(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.service.id}"
-
-
 
 class ServiceView(models.Model):
     service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='views')

@@ -3,11 +3,13 @@ from rest_framework import serializers
 from .models import Service,  Review,  Location , WorkingHour, SocialMedia
 import logging
 import json
+from django.contrib.gis.geos import Point
 logger = logging.getLogger(__name__)
 
 
 class SocialMediaSerializer(serializers.ModelSerializer):
     platform = serializers.CharField(source='get_platform_display', read_only=True)
+
     class Meta:
         model = SocialMedia
         fields = ['platform', 'profile_url']
@@ -22,25 +24,51 @@ class WorkingHourSerializer(serializers.ModelSerializer):
 class LocationSerializer(serializers.ModelSerializer):
     working_hours = WorkingHourSerializer(many=True, read_only=True)
     full_address = serializers.ReadOnlyField()
-    distance_from_riga_km = serializers.SerializerMethodField()
+    distance_km = serializers.SerializerMethodField()
+
+
+
+
+    def get_distance_km(self, obj):
+        # Distance annotated in queryset as meters (default unit)
+        distance = getattr(obj, 'distance', None)
+        if distance is not None:
+            # Convert meters to kilometers and round
+            return round(distance.m / 1000, 2)
+        return None
+
+    # def get_distance_km(self, obj):
+    #     user_point = self.context.get('user_point')
+    #     if user_point and obj.location:
+    #         distance_m = obj.location.distance(user_point)  # distance in degrees
+    #         # Convert degrees to meters (approx)
+    #         # For geographic (lon/lat), use Distance function to get meters accurately:
+    #         # Better: annotate location queryset with Distance() in meters, but here quick calc:
+    #         # Instead, use geodjango Distance function to get meters (if obj.location is geographic Point)
+            
+    #         # Actually better approach:
+    #         from django.contrib.gis.measure import Distance as D
+    #         # Calculate distance in meters using geodjango:
+    #         dist = obj.location.distance(user_point)
+    #         # dist is in degrees, so convert by:
+    #         from django.contrib.gis.geos import GEOSGeometry
+    #         # Instead let's annotate in queryset (better), or approximate meters as below:
+    #         # Approximate conversion: 1 degree ~ 111 km
+    #         distance_km = dist * 111  # very rough
+    #         return round(distance_km, 2)
+    #     return None
+
     
     class Meta:
         model = Location
         fields = '__all__'
 
-    def get_distance_from_riga_km(self, obj):
-        return obj.distance_from_riga_km
 
 class ServiceSerializer(serializers.ModelSerializer):
     full_phone_number = serializers.ReadOnlyField()
     full_address = serializers.ReadOnlyField()
-    
-    min_distance_to_riga = serializers.SerializerMethodField()
-    
     social_media = SocialMediaSerializer(many=True, read_only=True)
     cover_url = serializers.SerializerMethodField()
-    # locations = LocationSerializer(many=True, required=False)
-    locations = LocationSerializer(many=True, read_only=True)  # only for display
     user = serializers.ReadOnlyField(source='user.username')  # Optional: Display username
     category_display = serializers.CharField(source='get_category_display', read_only=True)  # 👈 Add this
     provider_display = serializers.CharField(source='get_provider_display', read_only=True)
@@ -51,8 +79,33 @@ class ServiceSerializer(serializers.ModelSerializer):
     service_image_3 = serializers.URLField(required=False, allow_blank=True)
     service_image_4 = serializers.URLField(required=False, allow_blank=True)
 
+    locations = LocationSerializer(many=True, read_only=True) 
+    # here i need to show location from current locations, which is the nearesest to the user.
+    #min_distance_km 
+
+
+    min_distance_km = serializers.SerializerMethodField()
+
+    def get_min_distance_km(self, obj):
+        return round(obj.min_distance_km, 2) if obj.min_distance_km is not None else None
+
+    # def get_min_distance_km(self, obj):
+    #     locations = obj.locations.all()
+    #     if not locations:
+    #         return None
+
+    #     distances = [
+    #         loc.distance.km for loc in locations
+    #         if hasattr(loc, 'distance') and loc.distance is not None
+    #     ]
+    #     return round(min(distances), 2) if distances else None
+
+
+
+
     rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
+
 
     def get_cover_url(self, obj):
         if obj.cover:
@@ -65,39 +118,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     def get_review_count(self, obj):
         return obj.review_count()  # Call the review_count() method from the Service model
-    
-    def get_min_distance_to_riga(self, obj):
-        if obj.min_distance_to_riga is not None:
-            return round(obj.min_distance_to_riga / 1000, 2)  # convert meters to km
-        return None
-    # def get_min_distance_to_riga(self, obj):
-    #     distance = getattr(obj, 'min_distance_to_riga', None)
-    #     if distance is not None:
-    #         return round(distance.m / 1000, 2)  # `.m` = meters
-    #     return None
 
-    
-
-
-    class Meta:
-        model = Service
-        fields = '__all__' 
-        
-    # def validate(self, data):
-    #     if not data.get('locations') and self.context['request'].method == 'POST':
-    #         raise serializers.ValidationError({
-    #             "locations": "At least one location is required when creating a service."
-    #         })
-    #     return data
-    # def validate(self, data):
-    #     request = self.context.get('request')
-    #     logger.debug("Validating data in ServiceSerializer for %s: %s", request.method if request else "unknown", data)
-
-    #     if not data.get('locations') and request and request.method == 'POST':
-    #         raise serializers.ValidationError({
-    #             "locations": "At least one location is required when creating a service."
-    #         })
-    #     return data
     def validate(self, data):
         request = self.context.get('request')
         print("validated data in serializer:", data)
@@ -119,23 +140,6 @@ class ServiceSerializer(serializers.ModelSerializer):
                 })
 
         return data
-
-
-
-
-    # def create(self, validated_data):
-    #     locations_data = validated_data.pop('locations', [])
-    #     social_media_data = validated_data.pop('social_media', [])
-        
-    #     service = Service.objects.create(**validated_data)
-
-    #     for loc_data in locations_data:
-    #         Location.objects.create(service=service, **loc_data)
-
-    #     if social_media_data:
-    #         service.social_media.set(social_media_data)
-
-    #     return service
 
     def create(self, validated_data):
         locations_data = validated_data.pop('locations', [])
@@ -186,9 +190,9 @@ class ServiceSerializer(serializers.ModelSerializer):
 
         return instance
 
-
-
-    
+    class Meta:
+        model = Service
+        fields = '__all__' 
 
 class ReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.username', read_only=True)

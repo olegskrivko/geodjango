@@ -113,7 +113,6 @@ INSTALLED_APPS = [
 
     # Installed APPs
     'rest_framework_simplejwt.token_blacklist',
-
     'corsheaders',
     'rest_framework',
     'webpush',
@@ -125,7 +124,7 @@ INSTALLED_APPS = [
     # Custom APPs
     'authentication',
     'accounts',
-    'chatbot',
+    'assistant',
     'feedback',
     'guides',
     'core',
@@ -153,8 +152,7 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-       # 'DIRS': [],
-        'DIRS': [BASE_DIR / 'templates'],  # 👈 add this line
+        'DIRS': [BASE_DIR / 'templates'],  # add this line
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -186,19 +184,19 @@ LEAFLET_CONFIG = {
 # DATABASES = {
 #     "default": dj_database_url.parse(os.getenv("DATABASE_URL"), conn_max_age=600)
 # }
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv("DATABASES_ENGINE"),
-        'NAME': os.getenv("DATABASES_NAME"),
-        'USER': os.getenv("DATABASES_USER"),
-        'PASSWORD': os.getenv("DATABASES_PASSWORD"),
-        'HOST': os.getenv("DATABASES_HOST"),
-        'PORT': os.getenv("DATABASES_PORT"),
-        # 'OPTIONS': {
-        #     'sslmode': 'require',                       
-        # },
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': os.getenv("DATABASES_ENGINE"),
+#         'NAME': os.getenv("DATABASES_NAME"),
+#         'USER': os.getenv("DATABASES_USER"),
+#         'PASSWORD': os.getenv("DATABASES_PASSWORD"),
+#         'HOST': os.getenv("DATABASES_HOST"),
+#         'PORT': os.getenv("DATABASES_PORT"),
+#         # 'OPTIONS': {
+#         #     'sslmode': 'require',                       
+#         # },
+#     }
+# }
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.contrib.gis.db.backends.postgis",
@@ -211,19 +209,19 @@ DATABASES = {
 #     }
 # }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-#         'NAME': 'pethub',
-#         'USER': 'postgres',
-#         'PASSWORD': 'postgres',
-#         'HOST': 'host.docker.internal',  # Works on Docker Desktop for Mac & Windows
-#        # 'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
-# GDAL_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll"
-# GEOS_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll"
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'pethub',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+      #  'HOST': 'host.docker.internal',  # Works on Docker Desktop for Mac & Windows
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+GDAL_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll"
+GEOS_LIBRARY_PATH = r"C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll"
 # GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH', r'C:\Program Files\PostgreSQL\16\bin\libgdal-35.dll')
 # GEOS_LIBRARY_PATH = os.environ.get('GEOS_LIBRARY_PATH', r'C:\Program Files\PostgreSQL\16\bin\libgeos_c.dll')
 # GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH')

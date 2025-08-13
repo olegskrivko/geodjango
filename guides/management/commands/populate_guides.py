@@ -1,5 +1,4 @@
 from django.core.management.base import BaseCommand
-from django.utils.text import slugify
 from faker import Faker
 import random
 from django.contrib.auth import get_user_model
@@ -18,7 +17,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("❌ No users found. Create a user first."))
             return
 
-        for _ in range(10):  # Create 10 guides
+        for _ in range(10):
             user = random.choice(users)
             title = fake.sentence(nb_words=6)
             description = fake.paragraph(nb_sentences=4)
@@ -33,6 +32,7 @@ class Command(BaseCommand):
                 cover_source=fake.company(),
                 created_by=user,
                 updated_by=user,
+                order=random.randint(1, 100), 
             )
 
             paragraph_count = random.randint(2, 5)

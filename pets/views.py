@@ -103,7 +103,7 @@ class PetFilter(filters.FilterSet):
         terms = value.strip().split()
         for term in terms:
             queryset = queryset.filter(
-                Q(notes__icontains=term) | Q(identifier__icontains=term)
+                Q(notes__icontains=term) | Q(breed__icontains=term)
             )
         return queryset
     

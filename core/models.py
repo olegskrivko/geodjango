@@ -7,6 +7,10 @@ from cloudinary.models import CloudinaryField
 import cloudinary.api
 from .choices import COUNTRY_CHOICES
 from .mixins import ContactMixin
+from django.db import models
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+
 
 class CoverImageModel(models.Model):
     cover = CloudinaryField('image', blank=True, null=True, help_text="Cover image.")
@@ -108,5 +112,29 @@ class FAQ(models.Model):
     def __str__(self):
         return self.question
     
+class SocialMedia(models.Model):
+    PLATFORM_CHOICES = [
+        (1, 'Facebook'),
+        (2, 'Instagram'),
+        (3, 'X'),
+        (4, 'LinkedIn'),
+        (5, 'YouTube'),
+        (6, 'TikTok'),
+    ]
 
+    # Generic relation fields
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)  
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
 
+    platform = models.IntegerField(choices=PLATFORM_CHOICES)
+    profile_url = models.URLField()
+
+    def __str__(self):
+        return f"{dict(self.PLATFORM_CHOICES).get(self.platform, 'Unknown')} - {self.profile_url}"
+
+    class Meta:
+        verbose_name = "Social Media"
+        verbose_name_plural = "Social Media Links"
+        # Ensure that for each related object (e.g., a shelter), there can be only one entry per social media platform
+        unique_together = ('content_type', 'object_id', 'platform')
