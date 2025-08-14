@@ -153,6 +153,69 @@ class UserPostersAPIView(APIView):
 #     serializer = PosterSerializer(posters, many=True)
 #     return Response(serializer.data)
 
+# class PosterBulkCreateView(APIView):
+#     permission_classes = [IsAuthenticated]  # ✅ Require login
+
+#     def post(self, request):
+#         pet_id = request.data.get('pet')
+#         name = request.data.get('name', '')
+#         count = int(request.data.get('count', 1))
+
+#         # ✅ Check if pet exists and is owned by current user
+#         pet = get_object_or_404(Pet, id=pet_id)
+#         if pet.author != request.user:
+#             return Response(
+#                 {"error": "You can only create posters for your own pets."},
+#                 status=status.HTTP_403_FORBIDDEN
+#             )
+
+#         posters = []
+#         for i in range(count):
+#             poster_name = f"{name} #{i+1}" if count > 1 else name
+#             poster = Poster.objects.create(
+#                 pet=pet,  # Pass the Pet object, not just ID
+#                 name=poster_name
+#             )
+#             posters.append({
+#                 "id": str(poster.id),
+#                 "pet": str(pet.id),
+#                 "name": poster.name
+#             })
+
+#         return Response(posters, status=status.HTTP_201_CREATED)
+# class PosterBulkCreateView(APIView):
+#     permission_classes = [IsAuthenticated]  # ✅ Require login
+
+#     def post(self, request):
+#         pet_id = request.data.get('pet')
+#         name = request.data.get('name', '')
+#         count = int(request.data.get('count', 1))
+
+#         # ✅ Enforce a limit
+#         if count < 1:
+#             return Response({"error": "You must create at least 1 poster."}, status=status.HTTP_400_BAD_REQUEST)
+#         if count > 20:
+#             return Response({"error": "You can create a maximum of 20 posters at a time."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # ✅ Check if pet exists and belongs to user
+#         pet = get_object_or_404(Pet, id=pet_id)
+#         if pet.author != request.user:
+#             return Response({"error": "You can only create posters for your own pets."}, status=status.HTTP_403_FORBIDDEN)
+
+#         posters = []
+#         for i in range(count):
+#             poster_name = f"{name} #{i+1}" if count > 1 else name
+#             poster = Poster.objects.create(
+#                 pet=pet,
+#                 name=poster_name
+#             )
+#             posters.append({
+#                 "id": str(poster.id),
+#                 "pet": str(pet.id),
+#                 "name": poster.name
+#             })
+
+#         return Response(posters, status=status.HTTP_201_CREATED)
 class PosterBulkCreateView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
     def post(self, request):
@@ -258,13 +321,13 @@ class PetViewSet(viewsets.ModelViewSet):
 
         return queryset
     
-    def get_pet_limit(self, user):
-        if getattr(user, "is_subscribed", False):
-            if getattr(user, "subscription_type", "") == 'plus':
-                return 3
-            elif getattr(user, "subscription_type", "") == 'premium':
-                return 5
-        return 1
+    # def get_pet_limit(self, user):
+    #     if getattr(user, "is_subscribed", False):
+    #         if getattr(user, "subscription_type", "") == 'plus':
+    #             return 3
+    #         elif getattr(user, "subscription_type", "") == 'premium':
+    #             return 5
+    #     return 1
   
     def list(self, request, *args, **kwargs):
         # The pagination logic is handled automatically by the pagination class
@@ -273,14 +336,21 @@ class PetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         current_count = Pet.objects.filter(author=user).count()
-        pet_limit = self.get_pet_limit(user)
-        
+        pet_limit = 5 
 
         if current_count >= pet_limit:
             raise ValidationError(
-                f"Jūs esat sasniedzis mājdzīvnieku pievienošanas limitu ({pet_limit}). "
-                "Lūdzu, dzēsiet esošu ierakstu vai atjauniniet abonementu."
+                f"You have reached the pet adding limit ({pet_limit}). "
+                "Please delete an existing entry to add a new one."
             )
+        # pet_limit = self.get_pet_limit(user)
+        
+
+        # if current_count >= pet_limit:
+        #     raise ValidationError(
+        #         f"Jūs esat sasniedzis mājdzīvnieku pievienošanas limitu ({pet_limit}). "
+        #         "Lūdzu, dzēsiet esošu ierakstu vai atjauniniet abonementu."
+        #     )
 
         uploaded_images = {}
         uploaded_images_list = []  # Store uploaded images in order
@@ -436,25 +506,13 @@ class PetViewSet(viewsets.ModelViewSet):
 
         return JsonResponse({"status": "Notifications sent to nearby users."})
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def pet_post_quota(request):
     user = request.user
 
-    # Default limit for free users
-    pet_limit = 1
-
-    # Adjust based on subscription
-    if getattr(user, "is_subscribed", False):
-        if user.subscription_type == 'plus':
-            pet_limit = 3
-        elif user.subscription_type == 'premium':
-            pet_limit = 5
-
-    # Count how many pets the user has already posted
+    pet_limit = 5  # Global limit for all users
     current_count = Pet.objects.filter(author=user).count()
-
     remaining = max(pet_limit - current_count, 0)
 
     return Response({
@@ -462,6 +520,32 @@ def pet_post_quota(request):
         'used': current_count,
         'remaining': remaining
     })
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def pet_post_quota(request):
+#     user = request.user
+
+#     # Default limit for free users
+#     pet_limit = 1
+
+#     # Adjust based on subscription
+#     if getattr(user, "is_subscribed", False):
+#         if user.subscription_type == 'plus':
+#             pet_limit = 3
+#         elif user.subscription_type == 'premium':
+#             pet_limit = 5
+
+#     # Count how many pets the user has already posted
+#     current_count = Pet.objects.filter(author=user).count()
+
+#     remaining = max(pet_limit - current_count, 0)
+
+#     return Response({
+#         'limit': pet_limit,
+#         'used': current_count,
+#         'remaining': remaining
+#     })
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

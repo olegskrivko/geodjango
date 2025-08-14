@@ -87,7 +87,12 @@ class ServiceSerializer(serializers.ModelSerializer):
     min_distance_km = serializers.SerializerMethodField()
 
     def get_min_distance_km(self, obj):
-        return round(obj.min_distance_km, 2) if obj.min_distance_km is not None else None
+    # Use getattr with default None to avoid AttributeError
+        distance = getattr(obj, 'min_distance_km', None)
+        return round(distance, 2) if distance is not None else None
+
+    # def get_min_distance_km(self, obj):
+    #     return round(obj.min_distance_km, 2) if obj.min_distance_km is not None else None
 
     # def get_min_distance_km(self, obj):
     #     locations = obj.locations.all()
