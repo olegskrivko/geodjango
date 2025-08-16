@@ -106,6 +106,7 @@ class Pet(AddressMixin, models.Model):
     is_archived = models.BooleanField(default=False, verbose_name="Is Archived?")
     is_banned = models.BooleanField(default=False, verbose_name="Is Banned?")
     final_status = models.IntegerField(choices=FINAL_STATUS_CHOICES, default=1, verbose_name="Final Status")
+    # final_status_description = models.TextField(blank=True, null=True, verbose_name="Final Status Description")
     
    
 

@@ -30,7 +30,8 @@ class GuideDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Guide
-        fields = ['id', 'title', 'slug', 'cover_url', 'description', 'paragraphs']
+        fields = "__all__"
+        # fields = ['id', 'title', 'slug', 'cover_url', 'description', 'paragraphs']
 
     def get_cover_url(self, obj):
         return obj.cover.url if obj.cover else None

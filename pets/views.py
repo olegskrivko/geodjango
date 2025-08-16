@@ -873,10 +873,29 @@ def get_pet_flag_status(request, pet_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
-class PosterDetailView(generics.RetrieveAPIView):
+# class PosterDetailView(generics.RetrieveAPIView):
+#     queryset = Poster.objects.all()
+#     serializer_class = PosterSerializer
+#     lookup_field = 'id'
+
+# class PosterDetailView(generics.RetrieveDestroyAPIView):
+#     queryset = Poster.objects.all()
+#     serializer_class = PosterSerializer
+#     lookup_field = 'id'
+
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # Read permissions are allowed to any request
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        # Write/delete only if user owns the poster's pet
+        return obj.pet.author == request.user
+
+class PosterDetailView(generics.RetrieveDestroyAPIView):
     queryset = Poster.objects.all()
     serializer_class = PosterSerializer
     lookup_field = 'id'
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
 
 class PetSightingPagination(PageNumberPagination):
     page_size = 3
