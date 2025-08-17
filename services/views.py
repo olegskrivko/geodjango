@@ -80,7 +80,68 @@ class ServiceViewSet(viewsets.ModelViewSet):
     pagination_class = ServicePagination
     parser_classes = (MultiPartParser, FormParser)
     ordering_fields = ['created_at', 'price', 'rating', 'distance']
-    # ordering = ['-created_at']
+
+    def get_service_limit(self, user):
+        if getattr(user, "is_subscribed", False):
+            if getattr(user, "subscription_type", "") == 'plus':
+                return 3
+            elif getattr(user, "subscription_type", "") == 'premium':
+                return 5
+        return 2
+    
+    def create(self, request, *args, **kwargs):
+        # 1️⃣ Parse locations from JSON string
+        raw_locations = request.data.get("locations", "[]")
+        try:
+            locations_data = json.loads(raw_locations)
+        except json.JSONDecodeError:
+            raise ValidationError({"locations": "Invalid JSON format for locations."})
+
+        # 2️⃣ Validate main service fields
+        mutable_data = request.data.copy()
+        mutable_data.setlist("locations", [])  # Clear locations for serializer
+        serializer = self.get_serializer(data=mutable_data)
+        serializer.is_valid(raise_exception=True)
+
+        # 3️⃣ Let the serializer handle the complete creation (service + locations)
+        # The serializer will get locations from context and create everything
+        service = serializer.save(user=request.user)
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    def perform_create(self, serializer, locations_data):
+        user = self.request.user
+        service_limit = self.get_service_limit(user)
+        if Service.objects.filter(user=user).count() >= service_limit:
+            raise ValidationError(
+                f"You have reached your service posting limit ({service_limit})."
+            )
+
+        # 1️⃣ Handle images
+        uploaded_images = {}
+        uploaded_images_list = []
+        for i in range(1, 5):
+            image_field = f"service_image_{i}_media"
+            image = self.request.FILES.get(image_field)
+            if image:
+                uploaded_image = cloudinary.uploader.upload(image)
+                uploaded_images_list.append(uploaded_image.get("secure_url"))
+
+        if not uploaded_images_list:
+            raise ValidationError({"error": "At least one image must be uploaded."})
+
+        # Map images to service fields
+        for idx, url in enumerate(uploaded_images_list):
+            uploaded_images[f"service_image_{idx+1}"] = url
+        for idx in range(len(uploaded_images_list) + 1, 5):
+            uploaded_images[f"service_image_{idx}"] = None
+
+        # 2️⃣ Save the Service instance with images
+        # The serializer will handle location creation
+        service = serializer.save(user=user, **uploaded_images)
+        
+        return service
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -136,112 +197,104 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
   
 
-    def get_service_limit(self, user):
-        if getattr(user, "is_subscribed", False):
-            if getattr(user, "subscription_type", "") == 'plus':
-                return 3
-            elif getattr(user, "subscription_type", "") == 'premium':
-                return 5
-        return 1
+
 
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
     
-    def create(self, request, *args, **kwargs):
-        print("Received request data:", request.data)
+    # def create(self, request, *args, **kwargs):
+    #     print("Received request data:", request.data)
 
-        # Step 1: Handle and extract location string → Python list
-        raw_locations = request.data.get("locations")
-        if isinstance(raw_locations, list):
-            raw_locations = raw_locations[0]  # because QueryDict stores it as list
-        try:
-            parsed_locations = json.loads(raw_locations) if raw_locations else []
-        except json.JSONDecodeError:
-            raise ValidationError({"locations": "Invalid JSON format for locations."})
+    #     # Step 1: Handle and extract location string → Python list
+    #     raw_locations = request.data.get("locations")
+    #     if isinstance(raw_locations, list):
+    #         raw_locations = raw_locations[0]  # because QueryDict stores it as list
+    #     try:
+    #         parsed_locations = json.loads(raw_locations) if raw_locations else []
+    #     except json.JSONDecodeError:
+    #         raise ValidationError({"locations": "Invalid JSON format for locations."})
 
-        # Step 2: Copy request data and manually inject parsed locations
-        mutable_data = request.data.copy()
-        mutable_data.setlist("locations", [])  # wipe it to avoid confusion
-        serializer = self.get_serializer(data=mutable_data)
-        serializer.is_valid(raise_exception=True)
+    #     # Step 2: Copy request data and manually inject parsed locations
+    #     mutable_data = request.data.copy()
+    #     mutable_data.setlist("locations", [])  # wipe it to avoid confusion
+    #     serializer = self.get_serializer(data=mutable_data)
+    #     serializer.is_valid(raise_exception=True)
 
-        # Step 3: save and pass locations + images to perform_create
-        self.perform_create(serializer, parsed_locations)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    #     # Step 3: save and pass locations + images to perform_create
+    #     self.perform_create(serializer, parsed_locations)
+    #     headers = self.get_success_headers(serializer.data)
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    def perform_create(self, serializer, locations_data):
-        user = self.request.user
-        current_count = Service.objects.filter(user=user).count()
-        service_limit = self.get_service_limit(user)
-        if current_count >= service_limit:
-            raise ValidationError(
-                f"You have reached your service posting limit ({service_limit}). Please delete an existing service or upgrade your subscription."
-            )
-        print("hello from perform_create", locations_data)
+    # def perform_create(self, serializer, locations_data):
+    #     user = self.request.user
+    #     current_count = Service.objects.filter(user=user).count()
+    #     service_limit = self.get_service_limit(user)
+    #     if current_count >= service_limit:
+    #         raise ValidationError(f"You have reached your service posting limit ({service_limit}). Please delete an existing service or upgrade your subscription.")
+    #     print("hello from perform_create", locations_data)
 
-        uploaded_images = {}
-        uploaded_images_list = []
+    #     uploaded_images = {}
+    #     uploaded_images_list = []
 
-        for i in range(1, 5):
-            image_field = f"service_image_{i}_media"
-            image = self.request.FILES.get(image_field)
-            if image:
-                uploaded_image = cloudinary.uploader.upload(image)
-                uploaded_images_list.append(uploaded_image.get("secure_url"))
+    #     for i in range(1, 5):
+    #         image_field = f"service_image_{i}_media"
+    #         image = self.request.FILES.get(image_field)
+    #         if image:
+    #             uploaded_image = cloudinary.uploader.upload(image)
+    #             uploaded_images_list.append(uploaded_image.get("secure_url"))
 
-        if not uploaded_images_list:
-            raise ValidationError({"error": "At least one image must be uploaded."})
+    #     if not uploaded_images_list:
+    #         raise ValidationError({"error": "At least one image must be uploaded."})
 
-        for index, image_url in enumerate(uploaded_images_list):
-            uploaded_images[f"service_image_{index+1}"] = image_url
-        for i in range(len(uploaded_images_list) + 1, 5):
-            uploaded_images[f"service_image_{i}"] = None
+    #     for index, image_url in enumerate(uploaded_images_list):
+    #         uploaded_images[f"service_image_{index+1}"] = image_url
+    #     for i in range(len(uploaded_images_list) + 1, 5):
+    #         uploaded_images[f"service_image_{i}"] = None
 
-        service = serializer.save(user=self.request.user, **uploaded_images)
+    #     service = serializer.save(user=self.request.user, **uploaded_images)
 
-        # Create related location objects with correct field mapping
-        for loc in locations_data:
-            if not all(k in loc for k in ("title", "description", "lat", "lng", "region", "city", "street", "postal_code", "full_address" )):
-                raise ValidationError({"locations": "Each location must include title, description, lat, and lng."})
+    #     # Create related location objects with correct field mapping
+    #     for loc in locations_data:
+    #         if not all(k in loc for k in ("title", "description", "lat", "lng", "region", "city", "street", "postal_code", "full_address" )):
+    #             raise ValidationError({"locations": "Each location must include title, description, lat, and lng."})
             
-            try:
-                lat = float(loc["lat"])
-                lng = float(loc["lng"])
-            except ValueError:
-                raise ValidationError({"locations": "Latitude and Longitude must be valid numbers."})
+    #         try:
+    #             lat = float(loc["lat"])
+    #             lng = float(loc["lng"])
+    #         except ValueError:
+    #             raise ValidationError({"locations": "Latitude and Longitude must be valid numbers."})
 
-            location = Location.objects.create(
-                service=service,
-                location_title=loc["title"],
-                location_description=loc["description"],
-                latitude=lat,
-                longitude=lng,
-                region=loc["region"],
-                city=loc["city"],
-                street=loc["street"],
-                postal_code=loc["postal_code"],
-                full_address=loc["full_address"],
-            )
+    #         location = Location.objects.create(
+    #             service=service,
+    #             location_title=loc["title"],
+    #             location_description=loc["description"],
+    #             latitude=lat,
+    #             longitude=lng,
+    #             region=loc["region"],
+    #             city=loc["city"],
+    #             street=loc["street"],
+    #             postal_code=loc["postal_code"],
+    #             full_address=loc["full_address"],
+    #         )
 
-            # Create default working hours for each location (Monday to Friday, 9:00-17:00)
-            from datetime import time
-            default_working_hours = [
-                (0, time(9, 0), time(17, 0)),  # Monday
-                (1, time(9, 0), time(17, 0)),  # Tuesday
-                (2, time(9, 0), time(17, 0)),  # Wednesday
-                (3, time(9, 0), time(17, 0)),  # Thursday
-                (4, time(9, 0), time(17, 0)),  # Friday
-                # Saturday and Sunday are not created (weekend)
-            ]
+    #         # Create default working hours for each location (Monday to Friday, 9:00-17:00)
+    #         from datetime import time
+    #         default_working_hours = [
+    #             (0, time(9, 0), time(17, 0)),  # Monday
+    #             (1, time(9, 0), time(17, 0)),  # Tuesday
+    #             (2, time(9, 0), time(17, 0)),  # Wednesday
+    #             (3, time(9, 0), time(17, 0)),  # Thursday
+    #             (4, time(9, 0), time(17, 0)),  # Friday
+    #             # Saturday and Sunday are not created (weekend)
+    #         ]
             
-            for day, from_hour, to_hour in default_working_hours:
-                WorkingHour.objects.create(
-                    location=location,
-                    day=day,
-                    from_hour=from_hour,
-                    to_hour=to_hour
-                )
+    #         for day, from_hour, to_hour in default_working_hours:
+    #             WorkingHour.objects.create(
+    #                 location=location,
+    #                 day=day,
+    #                 from_hour=from_hour,
+    #                 to_hour=to_hour
+    #             )
 
     def retrieve(self, request, pk=None):
         service = self.get_object()
@@ -693,9 +746,9 @@ def get_service_flag_status(request, service_id):
 
 # Limits per subscription type
 SUBSCRIPTION_LIMITS = {
-    'free': 1,
-    'plus': 3,
-    'premium': 5,
+    'free': 3,
+    'plus': 5,
+    'premium': 7,
 }
 
 @api_view(['GET'])

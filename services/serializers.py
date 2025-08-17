@@ -26,9 +26,6 @@ class LocationSerializer(serializers.ModelSerializer):
     full_address = serializers.ReadOnlyField()
     distance_km = serializers.SerializerMethodField()
 
-
-
-
     def get_distance_km(self, obj):
         # Distance annotated in queryset as meters (default unit)
         distance = getattr(obj, 'distance', None)
@@ -37,28 +34,6 @@ class LocationSerializer(serializers.ModelSerializer):
             return round(distance.m / 1000, 2)
         return None
 
-    # def get_distance_km(self, obj):
-    #     user_point = self.context.get('user_point')
-    #     if user_point and obj.location:
-    #         distance_m = obj.location.distance(user_point)  # distance in degrees
-    #         # Convert degrees to meters (approx)
-    #         # For geographic (lon/lat), use Distance function to get meters accurately:
-    #         # Better: annotate location queryset with Distance() in meters, but here quick calc:
-    #         # Instead, use geodjango Distance function to get meters (if obj.location is geographic Point)
-            
-    #         # Actually better approach:
-    #         from django.contrib.gis.measure import Distance as D
-    #         # Calculate distance in meters using geodjango:
-    #         dist = obj.location.distance(user_point)
-    #         # dist is in degrees, so convert by:
-    #         from django.contrib.gis.geos import GEOSGeometry
-    #         # Instead let's annotate in queryset (better), or approximate meters as below:
-    #         # Approximate conversion: 1 degree ~ 111 km
-    #         distance_km = dist * 111  # very rough
-    #         return round(distance_km, 2)
-    #     return None
-
-    
     class Meta:
         model = Location
         fields = '__all__'
@@ -70,7 +45,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     social_media = SocialMediaSerializer(many=True, read_only=True)
     cover_url = serializers.SerializerMethodField()
     user = serializers.ReadOnlyField(source='user.username')  # Optional: Display username
-    category_display = serializers.CharField(source='get_category_display', read_only=True)  # 👈 Add this
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
     provider_display = serializers.CharField(source='get_provider_display', read_only=True)
     price_type_display = serializers.CharField(source='get_price_type_display', read_only=True)
     
@@ -80,37 +55,15 @@ class ServiceSerializer(serializers.ModelSerializer):
     service_image_4 = serializers.URLField(required=False, allow_blank=True)
 
     locations = LocationSerializer(many=True, read_only=True) 
-    # here i need to show location from current locations, which is the nearesest to the user.
-    #min_distance_km 
-
-
     min_distance_km = serializers.SerializerMethodField()
 
     def get_min_distance_km(self, obj):
-    # Use getattr with default None to avoid AttributeError
+        # Use getattr with default None to avoid AttributeError
         distance = getattr(obj, 'min_distance_km', None)
         return round(distance, 2) if distance is not None else None
 
-    # def get_min_distance_km(self, obj):
-    #     return round(obj.min_distance_km, 2) if obj.min_distance_km is not None else None
-
-    # def get_min_distance_km(self, obj):
-    #     locations = obj.locations.all()
-    #     if not locations:
-    #         return None
-
-    #     distances = [
-    #         loc.distance.km for loc in locations
-    #         if hasattr(loc, 'distance') and loc.distance is not None
-    #     ]
-    #     return round(min(distances), 2) if distances else None
-
-
-
-
     rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
-
 
     def get_cover_url(self, obj):
         if obj.cover:
@@ -131,12 +84,17 @@ class ServiceSerializer(serializers.ModelSerializer):
         if request and request.method == 'POST':
             # We must check locations from the raw request because DRF won't parse nested JSON in multipart
             raw_locations = request.data.get('locations')
+            print("🔍 Raw locations from request:", raw_locations)
+            print("🔍 Request data keys:", list(request.data.keys()))
+            
             if isinstance(raw_locations, list):
                 raw_locations = raw_locations[0]
 
             try:
                 parsed_locations = json.loads(raw_locations)
-            except (TypeError, json.JSONDecodeError):
+                print("🔍 Parsed locations:", parsed_locations)
+            except (TypeError, json.JSONDecodeError) as e:
+                print("❌ Error parsing locations JSON:", e)
                 parsed_locations = []
 
             if not parsed_locations:
@@ -144,26 +102,119 @@ class ServiceSerializer(serializers.ModelSerializer):
                     "locations": "At least one location is required when creating a service."
                 })
 
+            # Store locations in context for later use in create method
+            self.context['locations_data'] = parsed_locations
+            print("🔍 Locations stored in context:", self.context['locations_data'])
+
         return data
 
     def create(self, validated_data):
-        locations_data = validated_data.pop('locations', [])
+        # Get locations from context (set during validation)
+        locations_data = self.context.get('locations_data', [])
         social_media_data = validated_data.pop('social_media', [])
+        request = self.context.get('request')
 
         logger.debug("Creating service with validated_data: %s", validated_data)
         logger.debug("Locations data: %s", locations_data)
         logger.debug("Social media data: %s", social_media_data)
+        
+        print("🚀 CREATE METHOD - Starting service creation")
+        print("🚀 Validated data:", validated_data)
+        print("🚀 Locations data from context:", locations_data)
+        print("🚀 Number of locations:", len(locations_data))
+
+        # Handle image uploads
+        print("🚀 Handling image uploads...")
+        uploaded_images = {}
+        uploaded_images_list = []
+        
+        for i in range(1, 5):
+            image_field = f"service_image_{i}_media"
+            image = request.FILES.get(image_field) if request else None
+            if image:
+                print(f"🚀 Uploading image {i}: {image.name}")
+                try:
+                    import cloudinary.uploader
+                    uploaded_image = cloudinary.uploader.upload(image)
+                    uploaded_images_list.append(uploaded_image.get("secure_url"))
+                    print(f"✅ Image {i} uploaded successfully: {uploaded_image.get('secure_url')}")
+                except Exception as e:
+                    print(f"❌ Error uploading image {i}: {e}")
+                    raise serializers.ValidationError({"image_upload": f"Failed to upload image {i}: {str(e)}"})
+
+        if not uploaded_images_list:
+            raise serializers.ValidationError({"error": "At least one image must be uploaded."})
+
+        # Map images to service fields
+        for idx, url in enumerate(uploaded_images_list):
+            uploaded_images[f"service_image_{idx+1}"] = url
+        for idx in range(len(uploaded_images_list) + 1, 5):
+            uploaded_images[f"service_image_{idx}"] = None
+
+        print(f"🚀 Image URLs mapped: {uploaded_images}")
 
         try:
+            print("🚀 Creating Service instance...")
+            # Add image URLs to validated data
+            validated_data.update(uploaded_images)
             service = Service.objects.create(**validated_data)
+            print("✅ Service created successfully with ID:", service.id)
         except Exception as e:
+            print("❌ Error creating Service instance:", str(e))
             logger.exception("Error creating Service instance")
             raise serializers.ValidationError({"service_creation": str(e)})
 
-        for loc_data in locations_data:
+        # Create locations with proper field mapping
+        print("🚀 Starting location creation...")
+        for i, loc_data in enumerate(locations_data):
             try:
-                Location.objects.create(service=service, **loc_data)
+                print(f"🚀 Creating location {i+1}:", loc_data)
+                
+                # Map frontend fields to backend model fields (now using correct names)
+                location_fields = {
+                    'service': service,
+                    'location_title': loc_data.get('location_title', ''),
+                    'location_description': loc_data.get('location_description', ''),
+                    'street_address': loc_data.get('street_address', ''),
+                    'city': loc_data.get('city', ''),
+                    'state_or_province': loc_data.get('state_or_province', ''),
+                    'postal_code': loc_data.get('postal_code', ''),
+                    'latitude': loc_data.get('latitude'),
+                    'longitude': loc_data.get('longitude'),
+                }
+                
+                print(f"🚀 Location fields mapped:", location_fields)
+                
+                # Create Point geometry if coordinates are provided
+                if loc_data.get('latitude') and loc_data.get('longitude'):
+                    try:
+                        lat = float(loc_data['latitude'])
+                        lng = float(loc_data['longitude'])
+                        location_fields['location'] = Point(lng, lat, srid=4326)
+                        print(f"🚀 Point geometry created: ({lng}, {lat})")
+                    except (ValueError, TypeError) as e:
+                        print(f"❌ Error creating Point geometry: {e}")
+                        logger.warning(f"Invalid coordinates: lat={loc_data.get('latitude')}, lng={loc_data.get('longitude')}")
+                
+                print(f"🚀 Creating Location object with fields:", location_fields)
+                location = Location.objects.create(**location_fields)
+                print(f"✅ Location {i+1} created successfully with ID:", location.id)
+                
+                # Create default working hours (Mon-Fri 9:00-17:00)
+                print(f"🚀 Creating working hours for location {i+1}...")
+                from datetime import time
+                default_hours = [(i, time(9, 0), time(17, 0)) for i in range(5)]
+                for day, start, end in default_hours:
+                    working_hour = WorkingHour.objects.create(
+                        location=location,
+                        day=day,
+                        from_hour=start,
+                        to_hour=end
+                    )
+                    print(f"✅ Working hour created for day {day}: {start}-{end}")
+                    
             except Exception as e:
+                print(f"❌ Error creating Location {i+1}:", str(e))
                 logger.exception("Error creating Location with data: %s", loc_data)
                 raise serializers.ValidationError({"location_creation": str(e)})
 
@@ -174,6 +225,7 @@ class ServiceSerializer(serializers.ModelSerializer):
                 logger.exception("Error setting social media")
                 raise serializers.ValidationError({"social_media": str(e)})
 
+        print("✅ All locations and working hours created successfully!")
         return service
 
     def update(self, instance, validated_data):

@@ -24,8 +24,6 @@ class SocialMedia(models.Model):
         (4, 'LinkedIn'),
         (5, 'YouTube'),
         (6, 'TikTok'),
-        (7, 'Pinterest'),
-        (8, 'Snapchat'),
     ]
     
     service = models.ForeignKey('Service', related_name='social_media', on_delete=models.CASCADE)
@@ -93,7 +91,8 @@ class Service(ContactMixin, models.Model):
     is_banned = models.BooleanField(default=False, verbose_name="Is Banned?")
     is_online = models.BooleanField(default=False)
     
-    service_image_1 = models.URLField(max_length=255, null=False, blank=False, verbose_name="Servisa 1. attēls")
+    # service_image_1 = models.URLField(max_length=255, null=False, blank=False, verbose_name="Servisa 1. attēls")
+    service_image_1 = models.URLField(max_length=255, null=True, blank=True, verbose_name="Servisa 1. attēls")
     service_image_2 = models.URLField(max_length=255, null=True, blank=True, verbose_name="Servisa 2. attēls")
     service_image_3 = models.URLField(max_length=255, null=True, blank=True, verbose_name="Servisa 3. attēls")
     service_image_4 = models.URLField(max_length=255, null=True, blank=True, verbose_name="Servisa 4. attēls")
@@ -149,17 +148,6 @@ class Location(models.Model):
     
     def __str__(self):
         return f'{self.service.operating_name} location'
-    
-class Review(models.Model):
-    service = models.ForeignKey(Service, related_name='reviews', on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    rating = models.DecimalField(max_digits=2, decimal_places=1)  # 0.0 to 5.0
-    comment = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_approved = models.BooleanField(default=True)
-
-    class Meta:
-        unique_together = ('service', 'user')
 
 class WorkingHour(models.Model):
     DAYS_OF_WEEK = [
@@ -183,6 +171,17 @@ class WorkingHour(models.Model):
 
     def __str__(self):
         return f'{self.location.city} - {self.get_day_display()}: {self.from_hour}–{self.to_hour}'
+
+class Review(models.Model):
+    service = models.ForeignKey(Service, related_name='reviews', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.DecimalField(max_digits=2, decimal_places=1)  # 0.0 to 5.0
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('service', 'user')
 
 class UserServiceFavorites(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="service_favorites")
