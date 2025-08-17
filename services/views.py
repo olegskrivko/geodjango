@@ -37,6 +37,7 @@ from django.db.models import Prefetch
 from django.db.models import OuterRef, Subquery, Min, F
 from django.db.models.functions import Coalesce
 from django.db import models
+from django.db.models import F, ExpressionWrapper
 User = get_user_model()
 
 class ServicePagination(PageNumberPagination):
@@ -94,20 +95,10 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 user_point = Point(float(longitude), float(latitude), srid=4326)
 
                 # Subquery to calculate min distance per service
-                min_distance_subquery = (
-                    Location.objects
-                    .filter(service=OuterRef('pk'))
-                    .annotate(distance=Distance('location', user_point))
-                    .values('service')
-                    .annotate(min_distance=Min('distance'))
-                    .values('min_distance')
-                )
+                min_distance_subquery = (Location.objects.filter(service=OuterRef('pk')).annotate(distance=Distance('location', user_point)).values('service').annotate(min_distance=Min('distance')).values('min_distance'))
 
                 queryset = (
-                    queryset
-                    .annotate(min_distance_km=Coalesce(Subquery(min_distance_subquery, output_field=FloatField()) / 1000.0, 99999.0))
-                    .order_by('min_distance_km')  # 👈 order here
-                    .prefetch_related(Prefetch('locations', queryset=Location.objects.annotate(distance=Distance('location', user_point)).order_by('distance')))
+                    queryset.annotate(min_distance_km=Coalesce(Subquery(min_distance_subquery, output_field=FloatField()) / 1000.0, 99999.0)).order_by('min_distance_km').prefetch_related(Prefetch('locations', queryset=Location.objects.annotate(distance=Distance('location', user_point)).order_by('distance')))
                 )
 
             except (ValueError, TypeError):
@@ -700,20 +691,46 @@ def get_service_flag_status(request, service_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
+# Limits per subscription type
+SUBSCRIPTION_LIMITS = {
+    'free': 1,
+    'plus': 3,
+    'premium': 5,
+}
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def service_post_quota(request):
     user = request.user
-    service_limit = 1
-    if getattr(user, "is_subscribed", False):
-        if user.subscription_type == 'plus':
-            service_limit = 3
-        elif user.subscription_type == 'premium':
-            service_limit = 5
+
+    # Default to 'free' if no subscription
+    subscription_type = getattr(user, 'subscription_type', 'free')
+    service_limit = SUBSCRIPTION_LIMITS.get(subscription_type, SUBSCRIPTION_LIMITS['free'])
+
     current_count = Service.objects.filter(user=user).count()
     remaining = max(service_limit - current_count, 0)
+
     return Response({
         'limit': service_limit,
         'used': current_count,
-        'remaining': remaining
+        'remaining': remaining,
+        'subscription_type': subscription_type
     })
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def service_post_quota(request):
+#     user = request.user
+#     service_limit = 1
+#     if getattr(user, "is_subscribed", False):
+#         if user.subscription_type == 'plus':
+#             service_limit = 3
+#         elif user.subscription_type == 'premium':
+#             service_limit = 5
+#     current_count = Service.objects.filter(user=user).count()
+#     remaining = max(service_limit - current_count, 0)
+#     return Response({
+#         'limit': service_limit,
+#         'used': current_count,
+#         'remaining': remaining
+#     })

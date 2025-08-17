@@ -42,7 +42,9 @@
 #             raise serializers.ValidationError("Šī ziņa jau ir nosūtīta no šī e-pasta.")
 #         return data
 from rest_framework import serializers
-from .models import Feedback
+from .models import Feedback, Testimonial
+
+
 
 class FeedbackSerializer(serializers.ModelSerializer):
     subject_display = serializers.SerializerMethodField(read_only=True)
@@ -68,11 +70,9 @@ class FeedbackSerializer(serializers.ModelSerializer):
         return dict(Feedback.SUBJECT_CHOICES).get(obj.subject, "Unknown")
 
 
-# testimonials/serializers.py
-# from rest_framework import serializers
-# from .models import Testimonial
 
-# class TestimonialSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Testimonial
-#         fields = '__all__'
+
+class TestimonialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Testimonial
+        fields = '__all__'

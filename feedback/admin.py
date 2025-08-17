@@ -1,6 +1,6 @@
 # feedback/admin.py
 from django.contrib import admin
-from .models import Feedback
+from .models import Feedback, Testimonial
 
 class FeedbackAdmin(admin.ModelAdmin):
     list_display = ('name', 'email', 'get_subject_display', 'created_at', 'updated_at', 'resolved', 'created_by')
@@ -13,13 +13,14 @@ class FeedbackAdmin(admin.ModelAdmin):
         return dict(Feedback.SUBJECT_CHOICES).get(obj.subject, "Unknown")
     get_subject_display.short_description = 'Subject'
 
+
+
+
+
+@admin.register(Testimonial)
+class TestimonialAdmin(admin.ModelAdmin):
+    list_display = ('author_name', 'author_title', 'author_company', 'created_at')
+    search_fields = ('author_name', 'author_company', 'text')
+
+
 admin.site.register(Feedback, FeedbackAdmin)
-
-# testimonials/admin.py
-# from django.contrib import admin
-# from .models import Testimonial
-
-# @admin.register(Testimonial)
-# class TestimonialAdmin(admin.ModelAdmin):
-#     list_display = ('author_name', 'author_title', 'author_company', 'created_at')
-#     search_fields = ('author_name', 'author_company', 'text')

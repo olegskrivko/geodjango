@@ -1,6 +1,7 @@
 # feedback/models.py
 from django.db import models
 from django.conf import settings
+import uuid
 
 class Feedback(models.Model):
     SUBJECT_CHOICES = [
@@ -27,17 +28,18 @@ class Feedback(models.Model):
         return f"{self.name} - {subject_display}"
     
 
-# class Testimonial(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     text = models.TextField(help_text="The testimonial content.")
-#     author_name = models.CharField(max_length=255, help_text="Full name of the person.")
-#     author_title = models.CharField(max_length=255, blank=True, help_text="Job title of the person.")
-#     author_company = models.CharField(max_length=255, blank=True, help_text="Company name.")
-#     author_photo = models.ImageField(upload_to="testimonials/", blank=True, null=True, help_text="Optional author photo.")
-#     created_at = models.DateTimeField(auto_now_add=True)
+class Testimonial(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    text = models.TextField(help_text="The testimonial content.")
+    author_name = models.CharField(max_length=255, help_text="Full name of the person.")
+    author_title = models.CharField(max_length=255, blank=True, help_text="Job title of the person.")
+    author_company = models.CharField(max_length=255, blank=True, help_text="Company name.")
+    is_visible = models.BooleanField(default=True, verbose_name="Visible to public")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="Timestamp when the testimonial was created.")
+    updated_at = models.DateTimeField(auto_now=True, help_text="Timestamp when the testimonial was last updated.")
 
-#     class Meta:
-#         ordering = ['-created_at']
+    class Meta:
+        ordering = ['-created_at']
 
-#     def __str__(self):
-#         return f"{self.author_name} - {self.author_company or 'No Company'}"
+    def __str__(self):
+        return f"{self.author_name} - {self.author_company or 'No Company'}"
