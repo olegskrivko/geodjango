@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'django_filters',
     'leaflet',
+    'modeltranslation',  
 
     # Custom APPs
     'authentication',
@@ -140,6 +141,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',  # must be AFTER SessionMiddleware and before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -277,7 +279,18 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'en'
+
+# specify which languages to add for django-modeltranslation (otherway it will add lang)
+LANGUAGES = [
+    ('en', 'English'),
+    ('lv', 'Latvian'),
+    ('ru', 'Russian'),
+]
+
+# Fallback language if a translation is missing
+MODELTRANSLATION_DEFAULT_LANGUAGE = 'en'
+
 
 TIME_ZONE = 'Europe/Riga'
 
