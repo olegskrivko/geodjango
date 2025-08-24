@@ -42,8 +42,9 @@ class ShelterViewSet(viewsets.ModelViewSet):
         # user defined coords
         latitude = self.request.query_params.get('latitude')
         longitude = self.request.query_params.get('longitude')
-        latitude = 56.9496   # Riga latitude
-        longitude = 24.1052  # Riga longitude
+        print("latitude", latitude , "longitude", longitude)
+        # latitude = 56.9496   # Riga latitude
+        # longitude = 24.1052  # Riga longitude
 
         if latitude and longitude:
             try:
@@ -55,6 +56,23 @@ class ShelterViewSet(viewsets.ModelViewSet):
         return queryset
     
 
+    def get_object(self):
+        """Override to annotate distance for a single object."""
+        obj = super().get_object()
+        latitude = self.request.query_params.get('latitude')
+        longitude = self.request.query_params.get('longitude')
+
+        if latitude and longitude:
+            try:
+                user_location = Point(float(longitude), float(latitude), srid=4326)
+                obj_with_distance = Shelter.objects.filter(pk=obj.pk).annotate(
+                    distance=Distance('location', user_location)
+                ).first()
+                if obj_with_distance:
+                    obj.distance = obj_with_distance.distance
+            except (ValueError, TypeError):
+                obj.distance = None
+        return obj
     # Override the default create behavior to automatically set created_by and updated_by fields
     def perform_create(self, serializer):
         """

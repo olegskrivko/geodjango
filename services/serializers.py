@@ -1,11 +1,16 @@
 # services/serializers.py
 from rest_framework import serializers
-from .models import Service,  Review,  Location , WorkingHour, SocialMedia
+from .models import Service,  Review,  Location , WorkingHour, SocialMedia,  ServiceCategory
 import logging
 import json
 from django.contrib.gis.geos import Point
 logger = logging.getLogger(__name__)
 
+
+class ServiceCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceCategory
+        fields = ['id', 'name', 'slug']
 
 class SocialMediaSerializer(serializers.ModelSerializer):
     platform = serializers.CharField(source='get_platform_display', read_only=True)
@@ -45,7 +50,8 @@ class ServiceSerializer(serializers.ModelSerializer):
     social_media = SocialMediaSerializer(many=True, read_only=True)
     cover_url = serializers.SerializerMethodField()
     user = serializers.ReadOnlyField(source='user.username')  # Optional: Display username
-    category_display = serializers.CharField(source='get_category_display', read_only=True)
+    # category_display = serializers.CharField(source='get_category_display', read_only=True)
+    service_categories = ServiceCategorySerializer(many=True, read_only=True)
     provider_display = serializers.CharField(source='get_provider_display', read_only=True)
     price_type_display = serializers.CharField(source='get_price_type_display', read_only=True)
     
@@ -106,22 +112,54 @@ class ServiceSerializer(serializers.ModelSerializer):
             self.context['locations_data'] = parsed_locations
             print("🔍 Locations stored in context:", self.context['locations_data'])
 
+            # Handle service categories from raw request
+            raw_service_categories = request.data.get('service_categories')
+            if raw_service_categories:
+                try:
+                    if isinstance(raw_service_categories, list):
+                        parsed_categories = raw_service_categories[0]
+                    else:
+                        parsed_categories = raw_service_categories
+                    
+                    service_categories = json.loads(parsed_categories)
+                    print("🔍 Parsed service categories:", service_categories)
+                    
+                    # Validate max 3 categories
+                    if len(service_categories) > 3:
+                        raise serializers.ValidationError({
+                            "service_categories": "You can select up to 3 service categories."
+                        })
+                    
+                    # Store categories in context for later use in create method
+                    self.context['service_categories_data'] = service_categories
+                    print("🔍 Service categories stored in context:", self.context['service_categories_data'])
+                    
+                except (TypeError, json.JSONDecodeError) as e:
+                    print("❌ Error parsing service categories JSON:", e)
+                    raise serializers.ValidationError({
+                        "service_categories": "Invalid format for service categories."
+                    })
+
         return data
 
     def create(self, validated_data):
         # Get locations from context (set during validation)
         locations_data = self.context.get('locations_data', [])
         social_media_data = validated_data.pop('social_media', [])
+        service_categories_data = self.context.get('service_categories_data', [])
         request = self.context.get('request')
 
         logger.debug("Creating service with validated_data: %s", validated_data)
         logger.debug("Locations data: %s", locations_data)
         logger.debug("Social media data: %s", social_media_data)
+        logger.debug("Service categories data: %s", service_categories_data)
         
         print("🚀 CREATE METHOD - Starting service creation")
         print("🚀 Validated data:", validated_data)
         print("🚀 Locations data from context:", locations_data)
+        print("🚀 Service categories data from context:", service_categories_data)
         print("🚀 Number of locations:", len(locations_data))
+        print("🚀 Number of service categories:", len(service_categories_data))
 
         # Handle image uploads
         print("🚀 Handling image uploads...")
@@ -159,6 +197,23 @@ class ServiceSerializer(serializers.ModelSerializer):
             validated_data.update(uploaded_images)
             service = Service.objects.create(**validated_data)
             print("✅ Service created successfully with ID:", service.id)
+            
+            # Set service categories
+            if service_categories_data:
+                try:
+                    print("🚀 Setting service categories:", service_categories_data)
+                    # Get ServiceCategory instances by slug
+                    from .models import ServiceCategory
+                    categories = ServiceCategory.objects.filter(slug__in=service_categories_data)
+                    if categories.exists():
+                        service.service_categories.set(categories)
+                        print(f"✅ Set {categories.count()} service categories on service")
+                    else:
+                        print("⚠️ No ServiceCategory instances found for slugs:", service_categories_data)
+                except Exception as e:
+                    print(f"❌ Error setting service categories: {e}")
+                    logger.exception("Error setting service categories")
+            
         except Exception as e:
             print("❌ Error creating Service instance:", str(e))
             logger.exception("Error creating Service instance")

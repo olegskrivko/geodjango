@@ -17,7 +17,7 @@ class SocialMediaSerializer(serializers.ModelSerializer):
 class ShelterSerializer(serializers.ModelSerializer):
     full_phone_number = serializers.ReadOnlyField()
     full_address = serializers.ReadOnlyField()
-    distance_from_riga_km = serializers.ReadOnlyField()
+    # distance_from_riga_km = serializers.ReadOnlyField()
     animal_types = AnimalTypeSerializer(many=True, read_only=True)
     social_media = SocialMediaSerializer(many=True, read_only=True)
     cover_url = serializers.SerializerMethodField()

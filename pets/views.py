@@ -295,7 +295,7 @@ class PetPagination(PageNumberPagination):
 
     
 class PetViewSet(viewsets.ModelViewSet):
-    queryset = Pet.objects.all().order_by('-created_at')  # Order by created_at in descending order (most recent first)
+    queryset = Pet.objects.all() # Order by created_at in descending order (most recent first)
     serializer_class = PetSerializer
     
     # permission_classes = [AllowAny]
@@ -320,6 +320,52 @@ class PetViewSet(viewsets.ModelViewSet):
                 pass  # Invalid input, ignore distance filtering
 
         return queryset
+    
+    # def get_object(self):
+    #     """Override to annotate distance for a single object."""
+    #     obj = super().get_object()
+    #     latitude = self.request.query_params.get('latitude')
+    #     longitude = self.request.query_params.get('longitude')
+
+    #     if latitude and longitude:
+    #         try:
+    #             user_location = Point(float(longitude), float(latitude), srid=4326)
+    #             obj_with_distance = Pet.objects.filter(pk=obj.pk).annotate(
+    #                 distance=Distance('location', user_location)
+    #             ).first()
+    #             if obj_with_distance:
+    #                 obj.distance = obj_with_distance.distance
+    #         except (ValueError, TypeError):
+    #             obj.distance = None
+    #     return obj
+    def get_object(self):
+        obj = super().get_object()
+        latitude = self.request.query_params.get('latitude')
+        longitude = self.request.query_params.get('longitude')
+
+        print(f"Pet ID: {obj.pk}, latitude param: {latitude}, longitude param: {longitude}")
+
+        if latitude and longitude:
+            try:
+                user_location = Point(float(longitude), float(latitude), srid=4326)
+                obj_with_distance = Pet.objects.filter(pk=obj.pk).annotate(
+                    distance=Distance('location', user_location)
+                ).first()
+
+                print(f"Annotated object: {obj_with_distance}, distance: {getattr(obj_with_distance, 'distance', None)}")
+
+                if obj_with_distance:
+                    obj.distance = obj_with_distance.distance
+                    print(f"Set distance on obj: {obj.distance.km if obj.distance else None}")
+            except (ValueError, TypeError) as e:
+                print(f"Error calculating distance: {e}")
+                obj.distance = None
+        else:
+            print("No latitude/longitude provided")
+            obj.distance = None
+
+        return obj
+
     
     # def get_pet_limit(self, user):
     #     if getattr(user, "is_subscribed", False):
@@ -404,7 +450,9 @@ class PetViewSet(viewsets.ModelViewSet):
             self.send_notifications_for_lost_pet(pet.id)
 
     def retrieve(self, request, pk=None):
-        pet = get_object_or_404(Pet, pk=pk)
+        pet = self.get_object()  # <-- use the overridden method
+
+        # pet = get_object_or_404(Pet, pk=pk)
         
         # Track the view (only once per user/IP per day)
         ip_address = self.get_client_ip(request)

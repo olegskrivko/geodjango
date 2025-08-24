@@ -11,6 +11,7 @@ from cloudinary.models import CloudinaryField
 from django.db.models import OuterRef, Subquery
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
+from django.utils.text import slugify
 User = get_user_model()
 
 
@@ -37,25 +38,42 @@ class SocialMedia(models.Model):
 
     class Meta:
         unique_together = ('service', 'platform')
+
+class ServiceCategory(models.Model):
+    name = models.CharField(max_length=50, unique=True, verbose_name="Service category")
+    slug = models.SlugField(max_length=50, unique=True, blank=True, help_text="Stable, URL-safe code for this service category (auto-generated)")
     
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = "Service category"
+        verbose_name_plural = "Service categories"
+
 class Service(ContactMixin, models.Model):
-    SERVICE_CATEGORIES = [
-        (1, 'Sitting'),
-        (2, 'Walking'), 
-        (3, 'Grooming'),  
-        (4, 'Training'), 
-        (5, 'Boarding'), 
-        (6, 'Veterinary'), 
-        (7, 'Photography'),  
-        (8, 'Rescue'),  
-        (9, 'Supplies'), 
-        (10, 'Art'),  
-        (11, 'Burial'),  
-        (12, 'Transport'),   
-        (13, 'Breeders'), 
-        (14, 'Insurance'), 
-        (15, 'Miscellaneous'),  
-    ]
+    service_categories = models.ManyToManyField(ServiceCategory, blank=True, related_name='services', verbose_name="Service categories")
+    # SERVICE_CATEGORIES = [
+    #     (1, 'Sitting'),
+    #     (2, 'Walking'), 
+    #     (3, 'Grooming'),  
+    #     (4, 'Training'), 
+    #     (5, 'Boarding'), 
+    #     (6, 'Veterinary'), 
+    #     (7, 'Photography'),  
+    #     (8, 'Rescue'),  
+    #     (9, 'Supplies'), 
+    #     (10, 'Art'),  
+    #     (11, 'Burial'),  
+    #     (12, 'Transport'),   
+    #     (13, 'Breeders'), 
+    #     (14, 'Insurance'), 
+    #     (15, 'Miscellaneous'),  
+    # ]
     PROVIDER_TYPES = [
         (1, 'Individual'),
         (2, 'Company'),
@@ -76,8 +94,9 @@ class Service(ContactMixin, models.Model):
     description = models.TextField()
     
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    price_type = models.IntegerField(choices=PRICE_TYPE_CHOICES, default=1)    
-    category = models.IntegerField(choices=SERVICE_CATEGORIES)
+    price_type = models.IntegerField(choices=PRICE_TYPE_CHOICES, default=1)   
+     
+    # category = models.IntegerField(choices=SERVICE_CATEGORIES)
     provider = models.IntegerField(choices=PROVIDER_TYPES)
 
     cover = CloudinaryField('image', blank=True, null=True, help_text="Cover image representing the service.")

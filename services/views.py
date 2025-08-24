@@ -2,8 +2,8 @@
 from rest_framework import serializers
 from rest_framework import viewsets, generics
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Service,  Review, WorkingHour, Location 
-from .serializers import ServiceSerializer, ReviewSerializer
+from .models import Service,  Review, WorkingHour, Location , ServiceCategory
+from .serializers import ServiceSerializer, ReviewSerializer, ServiceCategorySerializer
 import cloudinary.uploader
 from rest_framework import status
 from django.contrib.gis.geos import Point
@@ -53,23 +53,23 @@ class ServicePagination(PageNumberPagination):
             'results': data
         })
 
-class ServiceFilter(filters.FilterSet):
-    category = filters.NumberFilter(field_name='category', lookup_expr='exact')
-    provider = filters.NumberFilter(field_name='provider', lookup_expr='exact')
-    search = filters.CharFilter(method='filter_by_search', label='Search')
+# class ServiceFilter(filters.FilterSet):
+#     category = filters.NumberFilter(field_name='category', lookup_expr='exact')
+#     provider = filters.NumberFilter(field_name='provider', lookup_expr='exact')
+#     search = filters.CharFilter(method='filter_by_search', label='Search')
 
-    def filter_by_search(self, queryset, name, value):
-        """Split the search string into separate terms. Allow searching on operating name and description"""
-        terms = value.strip().split()
-        for term in terms:
-            queryset = queryset.filter(
-                Q(description__icontains=term) | Q(operating_name__icontains=term)
-            )
-        return queryset
+#     def filter_by_search(self, queryset, name, value):
+#         """Split the search string into separate terms. Allow searching on operating name and description"""
+#         terms = value.strip().split()
+#         for term in terms:
+#             queryset = queryset.filter(
+#                 Q(description__icontains=term) | Q(operating_name__icontains=term)
+#             )
+#         return queryset
 
-    class Meta:
-        model = Service
-        fields = ['search', 'category', 'provider']
+#     class Meta:
+#         model = Service
+#         fields = ['search', 'category', 'provider']
 
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all().order_by('-created_at')
@@ -388,6 +388,15 @@ class ServiceDetailView(generics.RetrieveAPIView):
                 pass
         return context
 
+class ServiceCategoryListView(generics.ListAPIView):
+    """
+    API view to list all service categories.
+    - Returns all service categories ordered alphabetically by name.
+    - Accessible to anyone (no authentication required).
+    """
+    queryset = ServiceCategory.objects.all().order_by('name')
+    serializer_class = ServiceCategorySerializer
+    permission_classes = [AllowAny]
 
 class ReviewListCreateView(generics.ListCreateAPIView):
     serializer_class = ReviewSerializer
